@@ -10,10 +10,10 @@
 
 ## Description
 
-The goal here is to analyse the given dataset to determine whether some models can be established for purposes of prediction:
-- The first two examples will harness simple tools for numerical and class predictions, by determining which relationship influences house prices for the first one and which influences the possibility of the bank's subscribing to the term deposit in the second one.
-- The third one will try to compare the results achieved through a stepwise regression with biderectional elimination against those of a personally chosen effective logistic regression. In both cases, the aim is to determine the relationship that best predicts whether or not a user has subscribed to the term deposit.
-- The fourth one will try to find whether there is or not a trend in the given data. In particular, the variable that seems to be most interesting to predict is the amount of calories based on the other attributes.
+The goal of these examples is to analyse the given datasets to determine whether some models can be established for purposes of prediction, to assess how stepwise prediction behaves with respect to a personally chosen model and determine an unknown trend in the cereal dataset:
+- The first two examples harness simple tools for numerical and class predictions, by determining which relationship influences Canadian house prices for the first one and which influences the possibility of the bank's subscribing to the term deposit in the second one.
+- The third one compares the results achieved through a stepwise regression with biderectional elimination against those of a personally chosen effective logistic regression on the bank data. In both cases, the aim is to determine the relationship that best predicts whether or not a user has subscribed to the term deposit.
+- The fourth one looks for possible trend/patterns in the given cereal data. In particular, the variable that seems to be most interesting to predict is the amount of calories based on the other attributes.
 
 
 ## Installation

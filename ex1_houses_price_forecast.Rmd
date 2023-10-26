@@ -1,0 +1,250 @@
+---
+title: "Example 1: House price forecast"
+author: "Author: Gurakuqi Jurgen"
+output:
+  html_document: default
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```  
+
+
+The dataset houses-canada.csv includes 4 variables about a random selection of 546 houses sold in a Canadian city:
+price: Sale price of the house;
+
+lotsize: Lot size of the property in square feet;
+
+stories: Number of stories (floors) excluding basement;
+
+gasheat: Does the house use gas for hot water heating?
+
+
+First, we read the data, then we show 6 rows of the dataset to understand how
+the variables of the dataset are populated:
+```{r }
+house <- read.csv("houses-canada.csv")
+head(house)
+```
+
+
+
+We also print the data to understand how the data is distributed and if some 
+variables need to be factorized:
+```{r }
+summary(house)
+table(house$stories)
+```  
+
+
+
+As we can see, there are categorical variables which need to be transformed into factors:
+```{r }
+house$gasheat <- factor(house$gasheat)
+house$stories <- factor(house$stories)
+summary(house)
+```
+
+
+We try now to fit a possible model:
+```{r }
+mod1 <- lm(price ~ lotsize + stories + gasheat, data = house)
+summary(mod1)
+```
+As we can see in the summary, all the predictors, except gasheat are strongly 
+significant and positively related to the response. Gasheat is also positively
+related to price, but just significant.
+Also the intercept, which includes stories1, is strongly significant and 
+positively related to the response.
+The $R^2$ is *44%*, and the adjusted $R^2$ is *43%*.
+
+
+Now, we must validate the model assumptions through the residual analysis and 
+the normal probability plot analysis:
+```{r }
+library(car)
+residualPlots(mod1)
+qqPlot(residuals(mod1))
+```
+We can see that:
+
+- The qqplot shows a strong departure from the normality on the right.
+- The residuals show a lot of outliers for gasheat and stories, and some patterns
+on the lotsize and on the fitted values. The problems are also confirmed by the 
+weakly significant Tukey test, and by the strongly significant test statistic of
+lotsize, so something is missing.
+  
+
+We can also check the effect plots to check the relation between the predictors
+and the response, and confirm what we have seen in the summary:
+```{r }
+library(effects)
+plot(allEffects(mod1))
+```
+Every effect plot confirms what we have previously said about the predictors in
+the summary:
+
+- Lotsize causes strong increments in the price according to its increase.
+- Stories causes great changes in the price according to it's value change.
+- Gasheat causes a visible increase when changing from no to yes.
+
+
+We check for the presence of possible *influential points*:
+```{r }
+influenceIndexPlot(mod1, vars = "Cook")
+```
+
+The Cook's distance tell's us that there are not influential points, as none of 
+the points gets below threshold of 0.5.
+
+Also we check for the presence of multicollinearities:
+```{r }
+vif(mod1)
+```
+The possible multicollinearities are indicated for values near to or higher than
+5, and strong multicollinearities are inidicated for values higher than 10, but
+in this case none of the values shows problems, so there are not multicollinarities.
+
+A last check we do is about the values that this model can return, considering
+that a money response should not assume negative values:
+```{r }
+summary(fitted(mod1))
+```
+This model does not show problems about negative responses, so we do not need
+to fit a logarithmic version of it.
+
+
+We could try to improve our model with the introduction of an interaction term:
+```{r }
+mod2 <- update(mod1, . ~ . + stories * lotsize)
+summary(mod2)
+```
+As we can see in the summary:
+
+- **lotsize** is *strongly* significant, and *positively* related to the response.
+- **stories** has become *not* significant, and it's *positively* related to the
+response.
+- **gasheat** has mantained it's significance and positive relation with price.
+- The interaction **lotsize/stories** is *weakly* significant for stories 2, and not significant
+for 3 and 4, whereas the 1 is included in the intercept, which has remained
+strongly significant.
+- Stories alone seems to be not significant, but yet positively related to price.
+- The intercept, which includes stories1 and stories1:lotsize, is strongly
+significant and positively related to the response.
+- The $R^2$ is *45%*, and the adjusted $R^2$ is *44%*, which 
+are better then those of the previous model, but not that much.
+
+
+
+Again, we check the residuals and the normal probability plot:
+```{r }
+residualPlots(mod2)
+qqPlot(residuals(mod2))
+```
+Yet, the qqplot shows a strong departure from the normality, and the residuals
+are not good again. Also, this time the Tukey test has got worse then before.
+  
+We check again the effect plots:
+```{r }
+plot(allEffects(mod2))
+```
+Each plot confirms the previous results shown in the summary:
+
+- Gasheat is significant, as it rises the price by changing from No to yes, but
+not in a concrete way.
+- The inreaction does not show clear increases for stories 3 and 4, but shows
+some light increases for 1 and 2.
+
+
+We can try also a last model using other interactions:
+```{r }
+mod3 <- update(mod2, . ~ . + gasheat * lotsize)
+summary(mod3)
+```
+As we can see in the summary:
+
+- **lotsize** is *strongly* significant, and *positively* related to the response.
+- **stories** is *not* significant, and it's *positively* related to the
+response.
+- **gasheat** has become not significant, and it's positively related with price.
+- The interaction **lotsize/stories** is *weakly* significant for stories 2, and not significant
+for 3 and 4, whereas the 1 is included in the intercept, which has remained
+strongly significant.
+- The interaction **lotsize/gasheat** is *not* significant 2, and it's psotively
+related to the response.
+- Stories is not significant, but yet positively related to price.
+- The intercept, which includes stories1 and stories1:lotsize and
+lotsize:gasheatNo, is strongly significant and positively related to the response.
+- The $R^2$ is *45%*, and the adjusted $R^2$ is *44%*, which 
+are better then those of the previous model, but not that much.
+
+
+
+Again, we check the residuals and the normal probability plot:
+```{r }
+residualPlots(mod3)
+qqPlot(residuals(mod3))
+```
+The qqplot shows again a strong departure from the normality, and the residuals
+are not good.
+Also here the test significance for lotsize and the Tukey test are both strongly
+significant.
+  
+We check again the effect plots:
+```{r }
+plot(allEffects(mod3))
+```
+The interaction between lotsize and stories behaves like in the previous model,
+whereas the interaction between lotsize and gasheat shows that for Gasheat
+"yes" there is no clearly strong increment of price, but there is a visible
+increment when gasheat is "no".
+
+
+Eventually, we pick the *mod1* as final model for our predictions, because 
+even if it shows a lightly lower $R^2$ and adjuted $R^2$, it shows less problems
+with lotsize, has not significant interaction terms, has less variables 
+(meaning a better option according to the Parsimony principle).
+
+We compute the predictions and predictions intervals for mod1:
+```{r }
+pr <- predict(mod1, 
+              newdata = data.frame(gasheat = "yes", 
+                                   stories = "1",
+                                   lotsize = 3000), 
+              se.fit = TRUE)
+ci <- pr$fit + c(-1, 1) * qnorm(0.975) * pr$se
+pr$fit
+ci
+
+pr <- predict(mod1, 
+              newdata = data.frame(gasheat = "no", 
+                                   stories = "2",
+                                   lotsize = 3000),  
+              se.fit = TRUE)
+ci <- pr$fit + c(-1, 1) * qnorm(0.975) * pr$se
+pr$fit
+ci
+
+pr <- predict(mod1, 
+              newdata = data.frame(gasheat = "yes", 
+                                   stories = "4",
+                                   lotsize = 3000), 
+              se.fit = TRUE)
+ci <- pr$fit + c(-1, 1) * qnorm(0.975) * pr$se
+pr$fit
+ci
+
+pr <- predict(mod1, 
+              newdata = data.frame(gasheat = "yes", 
+                                   stories = "1",
+                                   lotsize = 6000), 
+              se.fit = TRUE)
+ci <- pr$fit + c(-1, 1) * qnorm(0.975) * pr$se
+pr$fit
+ci
+```
+
+
+
+ 

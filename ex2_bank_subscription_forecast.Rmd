@@ -1,0 +1,273 @@
+---
+title: "Example 2: Bank term deposit subscription forecast"
+author: "Author: Gurakuqi Jurgen"
+output:
+  html_document: default
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```  
+
+
+The dataset bank-deposit.csv includes 5 variables about a marketing campaign consisting in phone calls to convince clients to subscribe a bank term deposit.
+
+Available variables:
+
+subscribed the client subscribed the term deposit?
+
+age;
+
+education with levels "unknown","primary", "secondary", "tertiary";
+
+balance average yearly balance, in euros;
+
+loan current personal loans?
+
+Fit a model to predict if the client will subscribe the term deposit using the available variables. Describe your results and give some illustrations.
+
+
+First, we read the data, then we show 6 rows of the dataset to understand how
+the variables of the dataset are populated:
+```{r }
+bankDeposit <- read.csv("bank-deposit.csv")
+head(bankDeposit)
+```
+
+
+
+We also print the data to understand how the data is distributed and if some 
+variables need to be factorized:
+```{r }
+summary(bankDeposit)
+```  
+
+
+
+As we can see, there are categorical variables which need to be transformed 
+into factors:
+```{r }
+bankDeposit$loan <- factor(bankDeposit$loan)
+bankDeposit$education <- factor(bankDeposit$education)
+bankDeposit$subscribed <- factor(bankDeposit$subscribed)
+summary(bankDeposit)
+```
+
+
+Split **bankDeposit** randomly in two subsets for testing and training:
+```{r}
+set.seed(123)
+id <- sample(x = nrow(bankDeposit), size = nrow(bankDeposit) / 2)
+bankDeposit.train <- bankDeposit[id, ]
+bankDeposit.test <- bankDeposit[-id, ]
+```
+
+
+For illustration, below we consider *Logistic Regression* of **Response** using 
+the predictors **var1**, **var2** and **var3**. 
+We start with the model that includes the choosen predictors: 
+```{r }
+glm.fit <- glm(subscribed ~ loan + balance + age + education, data = bankDeposit.train, family = binomial)
+summary(glm.fit)
+```
+As we can see in the summary:
+
+- The intercept is strongly significant and negatively related to the response.
+- **loanYes** is *strongly* significant, and *negatively* related to the response.
+- **balance** is *not* significant, and *positively* related to the response.
+- **age** is significant, and *positively* related to the response.
+- **education** is significant for tertiary, and not significant for the other values.
+Except for unknwon, the values of education are positively related to the response
+(and also except for primary, which is included in the intercept)
+- The $AIC$ is *1631.2*.
+
+We check also the effect plots of glm.fit to confirm what we have seen in the
+model's summary:
+```{r fig.width = 10}
+library(effects)
+plot(allEffects(glm.fit), ylab = "Probability of Subscribing", 
+     rescale.axis = FALSE)
+```
+The plots show that:
+
+- **loan** is *strongly* significant, in fact when it changes from no to yes,
+or viceversa, there is a strong decrease/increase in the response.
+- **balance** is *not* significant, in fact to any increment of 
+it there isn't any visible change in the response.
+- **age** is  significant, in fact to any increment of it corresponds a visible
+increment in the response.
+- **education** is significant, as by changing from primary to secondary there is
+a lightly visible increase, changing to  tertiare a more visible increase, but
+to unknown a possible decrease, but very unclear.
+
+
+
+The summary and the Effect plots have shown how much significant are the 
+predictors, so now predict the **Subscribed status** for the test data:
+```{r}
+glm.probs <- predict(glm.fit, newdata = bankDeposit.test, type = "response")
+```
+
+We compute the ROC curve in order to obtain through the *coords* function the 
+best threshold, which is obtained from the best point of the ROC curve
+corresponding to the maximum of the sum of sensitivity and specificity (in order 
+to obtain the best Accuracy):
+```{r message = FALSE}
+library(pROC)
+glm.roc <- roc(bankDeposit.test$subscribed ~ glm.probs, 
+               plot = TRUE, 
+               print.auc = TRUE)
+coords(glm.roc, x = "best", ret = "all")
+```
+According to the output of **coords**, the optimal choice corresponds to a 
+threshold of ```r round(coords(glm.roc, x = "best")[1], 2)``` with a 
+corresponding accuracy of ```r round(100*coords(glm.roc, x = "best", ret = "all")$accuracy, 2)```% 
+(and $58%$ specificity and $57%$ sensitivity).
+
+
+### LDA: Linear Discriminant Analysis
+
+In order to see id QDA and LDA can do better with this model, we fit it again 
+with them.
+First we fit the same previous model with the Linear Discriminant Analysis:
+```{r}
+library(MASS)
+lda.fit <- lda(subscribed ~ loan + balance + age + education, 
+               data = bankDeposit.train)
+lda.fit
+```
+
+Now predict the test data:
+```{r}
+lda.preds <- predict(lda.fit, newdata = bankDeposit.test)
+```
+
+
+We build a ROC curve for the LDA to look for the best threshold:
+```{r}
+lda.roc <- roc(bankDeposit.test$subscribed ~ lda.preds$posterior[, 2], 
+               plot = TRUE, 
+               print.auc = TRUE)
+coords(lda.roc, x = "best", ret = "all")
+```
+The best choice for the threshold of linear discriminant analysis yields an 
+accuracy of ```r round(100*coords(lda.roc, x = "best", ret = "all")$accuracy, 2)```\%. 
+
+
+### QDA: Quadratic Discriminant Analysis
+
+
+We fit now the previous model using the Quadratic discriminant analysis:
+```{r}
+library(MASS)
+qda.fit <- qda(subscribed ~ loan + balance + age + education, 
+               data = bankDeposit.train)
+qda.fit
+```
+
+
+We predict the test data in order to compute the ROC Curve, and so the best
+threshold (to find the Accuracy):
+```{r}
+qda.preds <- predict(qda.fit, newdata = bankDeposit.test)
+table(preds = qda.preds$class, true = bankDeposit.test$subscribed)
+qda.roc <- roc(bankDeposit.test$subscribed ~ qda.preds$posterior[, 2], 
+               plot = TRUE, 
+               print.auc = TRUE)
+coords(qda.roc, x = "best", ret = "all")
+```
+The best choice for the threshold of the quadratic discriminant analysis yields
+an accuracy of ```r round(100*coords(qda.roc, x = "best", ret = "all")$accuracy, 2)```\%. 
+
+
+### RANKING
+We can rank now the classification methods for the **bankDeposit** data in 
+terms of accuracy:
+
+1. LDA ```r round(100*coords(lda.roc, x = "best", ret = "all")$accuracy, 2)```%
+
+2. Logistic Regression ```r round(100*coords(glm.roc, x = "best", ret = "all")$accuracy, 2)```%
+
+3. QDA ```r round(100*coords(qda.roc, x = "best", ret = "all")$accuracy, 2)```%
+
+
+
+We can now compute some predictions with the LDA fit, as it shows a better 
+accuracy:
+```{r }
+predict(
+  lda.fit,
+  newdata = data.frame(
+    loan = "no",
+    balance = 2000,
+    age = 60,
+    education = "tertiary"
+  )
+)$posterior
+predict(
+  lda.fit,
+  newdata = data.frame(
+    loan = "no",
+    balance = 5000,
+    age = 60,
+    education = "tertiary"
+  )
+)$posterior
+predict(
+  lda.fit,
+  newdata = data.frame(
+    loan = "no",
+    balance = 2000,
+    age = 30,
+    education = "tertiary"
+  )
+)$posterior
+predict(
+  lda.fit,
+  newdata = data.frame(
+    loan = "no",
+    balance = 2000,
+    age = 60,
+    education = "primary"
+  )
+)$posterior
+predict(
+  lda.fit,
+  newdata = data.frame(
+    loan = "yes",
+    balance = 2000,
+    age = 60,
+    education = "primary"
+  )
+)$posterior
+predict(
+  lda.fit,
+  newdata = data.frame(
+    loan = "no",
+    balance = 2000,
+    age = 30,
+    education = "primary"
+  )
+)$posterior
+predict(
+  lda.fit,
+  newdata = data.frame(
+    loan = "no",
+    balance = 500,
+    age = 30,
+    education = "primary"
+  )
+)$posterior
+
+
+```
+As we can see:
+
+- Balance seems to not affect the response, in fact in the last two examples there
+was a large change in the balance, but the response is nearly the same.
+- The age is influent, in fact decreasing it to 30 years causes a very visible
+change in the response.
+- Loan is strongly influent, as its change from No to Yes changes largely the
+response.
+ 

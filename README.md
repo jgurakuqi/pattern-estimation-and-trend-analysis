@@ -23,6 +23,12 @@ The examples require [R](https://cran.rstudio.com/) and [RStudio](https://posit.
 ## Usage
 
 The outputs are produced as html files, which are already included in the repo. If you need to run the markdowns select the Knit to HTML option (or the more suitable for you).
+To view the html files produced in this repository, you can download them (or produce them) and open them in a web browser, or use the following links directly to view those included in the repository
+- [Example 1](https://htmlpreview.github.io/?https://github.com/jgurakuqi/trend-analysis/blob/main/ex1_houses_price_forecast.html)
+- [Example 2](https://htmlpreview.github.io/?https://github.com/jgurakuqi/trend-analysis/blob/main/ex2_bank_subscription_forecast.html)
+- [Example 3](https://htmlpreview.github.io/?https://github.com/jgurakuqi/trend-analysis/blob/main/ex3_stepwise_regression.html)
+- [Example 4](https://htmlpreview.github.io/?https://github.com/jgurakuqi/trend-analysis/blob/main/ex4_find_trend.html)
+
 
 ## Contribution
 

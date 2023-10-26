@@ -1,4 +1,4 @@
-# trend-analysis
+# pattern-estimation-and-trend-analysis
 
 ## Table of Contents
 

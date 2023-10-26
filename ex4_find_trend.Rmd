@@ -1,0 +1,311 @@
+---
+title: "Example 4: Find trend in cereal data"
+author: "Author: Gurakuqi Jurgen"
+output:
+  html_document: default
+---
+
+
+Dataset cereals.csv contains information about a sample of 65 breakfast cereals. The variables included in the dataset are:
+
+calories per serving;
+
+protein grams, per serving;
+
+chol total cholesterol per serving;
+
+sodium milligrams, per serving;
+
+fibers grams, per serving;
+
+carb grams of carbohydrates, per serving;
+
+sugars grams, per serving;
+
+potassium milligrams, per serving;
+
+vitamins level: none, medium, high;
+
+brand: A, B, C, D.
+
+Formulate and answer a question with the available data.
+
+
+
+
+
+First of all, read the data and print the first 6 rows to get an idea of how
+the dataset is populated:
+```{r }
+cereal <- read.csv("cereals.csv")
+head(cereal)
+summary(cereal)
+```
+
+We observed that there are categorical variables, so we transform them into 
+factors: 
+```{r }
+cereal$vitamins <- factor(cereal$vitamins)
+cereal$brand <- factor(cereal$brand)
+
+# levels(cereal$variable)
+# levels(cereal$variable) <- c("No", "Yes")
+summary(cereal)
+``` 
+
+
+The question that I choose to answer with the available data is 
+*“Can we predict the quantity of Calories of cereal using any of the given variables?”*. 
+I shall answer the question using *calories* as the response variable.
+
+
+In order to choose the best set of predictors among the given variables we use a
+model selection method, the stepwise regression with bideractional elimination
+in this case:
+```{r }
+library("glmnet")
+library("glmnetUtils")
+set.seed(999)
+null.model <- lm(calories ~ 1,
+                  data = cereal)
+full.model <- lm(calories ~ .,
+                  data = cereal)
+step.model <- step(null.model, scope = list(upper = formula(full.model)),
+                   direction = "both")
+summary(step.model)
+```
+As we can see, the subset selection recommends to take as predictors carb,
+sugars, chol, protein, potassium and fibers. The summary shows that:
+
+- All the predictors, intercept included, are strongly significant.
+- Potassium and the intercept are the only ones which are negatively related to
+the response.
+- The $R^2$ is $99%$ and adjusted $R^2$ is $98%$.
+
+
+Now, we must validate the model assumptions through the residual analysis and 
+the normal probability plot analysis:
+```{r }
+library(car)
+residualPlots(step.model)
+qqPlot(residuals(step.model))
+```
+We can see that:
+
+- The qqplot shows just a very little departure from normality on the center,
+but except for that it's good.
+- Sugars, potassium and fibers  plots seem to be all god, as confirmed by 
+their test statistics.
+- Carb shows some evident patterns, which is confirmed by a strong test statistic.
+- Chol shows a pattern, not as much bad as the one of carb, and protein a very
+light pattern, and they are both confirmed by their related test statistics.
+  
+We can also check the effect plots to check the relation between the predictors
+and the response, and confirm what we have seen in the summary:
+```{r }
+library(effects)
+plot(allEffects(step.model))
+```
+Every effect plot confirms what we have previously said about the predictors in
+the summary, in fact all the predictor's changes are very influent towards 
+the response, even if the contribution to the change of the response becomes
+less clear for potassium and fibers as long as they rise, and for protein happens
+the same, even if in a very ligher way.
+
+
+We check for the presence of possible *influential points*:
+```{r }
+## If an observation is beyond the 0.5 threshold, it's an influential point.
+influenceIndexPlot(step.model, vars = "Cook")
+```
+Clearly, the Influence plot shows a very influent point which goes a lot over the
+0.5 threshold, the observation 31, and potentially also the 32 (we say 
+potentially because it's value is concealed by the very high value of 31).
+
+
+```{r }
+cereal["31", ]
+cereal["32", ]
+```
+
+```{r }
+boxplot(cereal$protein, main = "protein")
+points(cereal["31", 2], col = "red", pch = 16)
+
+boxplot(cereal$chol, main = "chol")
+points(cereal["31", 3], col = "red", pch = 16)
+
+boxplot(cereal$sodium, main = "sodium")
+points(cereal["31", 4], col = "red", pch = 16)
+
+boxplot(cereal$fibers, main = "fibers")
+points(cereal["31", 5], col = "red", pch = 16)
+
+boxplot(cereal$carb, main = "carb")
+points(cereal["31", 6], col = "red", pch = 16)
+
+boxplot(cereal$sugars, main = "sugars")
+points(cereal["31", 7], col = "red", pch = 16)
+
+boxplot(cereal$potassium, main = "potassium")
+points(cereal["31", 8], col = "red", pch = 16)
+
+
+
+
+
+boxplot(cereal$protein, main = "protein")
+points(cereal["32", 2], col = "red", pch = 16)
+
+boxplot(cereal$chol, main = "chol")
+points(cereal["32", 3], col = "red", pch = 16)
+
+boxplot(cereal$sodium, main = "sodium")
+points(cereal["32", 4], col = "red", pch = 16)
+
+boxplot(cereal$fibers, main = "fibers")
+points(cereal["32", 5], col = "red", pch = 16)
+
+boxplot(cereal$carb, main = "carb")
+points(cereal["32", 6], col = "red", pch = 16)
+
+boxplot(cereal$sugars, main = "sugars")
+points(cereal["32", 7], col = "red", pch = 16)
+
+boxplot(cereal$potassium, main = "potassium")
+points(cereal["32", 8], col = "red", pch = 16)
+
+
+```
+The observation 31 is a big outlier on more than one predictor, and 32 is also
+an outlier for cholesterol, so we proceed in their removal and we refit the model:
+
+
+```{r }
+mod2 <- update(step.model, subset = -which(rownames(cereal) %in% c("31", "32")))
+summary(mod2)
+influenceIndexPlot(mod2, vars = "Cook")
+```
+As we can see in the summary, the $R^2$ and the adjusted $R^2$ have decreased
+a little, and now only carb, sugars, chol and protein are strongly significant,
+whereas all the other variables are not significant. (the significant ones
+are also postively related to the response).
+Moreover, the influenceindexplot does not suggest any other influential point.
+
+
+We check the residuals and the normal probability plot:
+```{r }
+residualPlots(mod2)
+qqPlot(residuals(mod2))
+```
+
+The qqplot has improved, and the residuals have improved a lot, in fact now only
+chol has a weakly significant test statistics, and all the plots seem very good,
+except for a very light pattern in carb, chol and in the fitted values.
+
+
+We can check also for potential multicollinearities:
+```{r}
+vif(mod2)
+```
+Clearly, there are some strong multicollinearities, as indicated by the values
+of  potassium and fibers, and a multicollinearity indication by protein,
+so we give a closer look:
+```{r }
+with(cereal[-c(31, 32), ], round(cor(cbind(calories,
+                                            carb,
+                                            sugars,
+                                            chol,
+                                            protein,
+                                            potassium,
+                                            fibers)),
+                                  2))
+```
+As shown by the vif function, there are some strong correlations between potassium,
+protein and fibers so we remove potassium and re-fit the model:
+```{r }
+mod3 <- update(mod2, . ~ . - potassium, subset = -c(31,32))
+summary(mod3)
+vif(mod3)
+```
+We need to remove also protein, as it's vif values is still important:
+```{r }
+mod4 <- update(mod2, . ~ . - potassium - protein, subset = -c(31,32))
+summary(mod4)
+vif(mod4)
+```
+Finally, there are not any more dangerous vif values, so we can proceed in a final
+analysis of this fit.
+The summary tells that all the predictors are strongly significant and positvely
+related to the response, whereas the intercept is not significant and it's 
+negatively related to the response.
+The $R^2$ and adjusted $R^2$ are both $97%$, which is a few less than the beginning
+model.
+
+Now, we must validate the model assumptions through the residual analysis and 
+the normal probability plot analysis:
+```{r }
+library(car)
+residualPlots(mod4)
+qqPlot(residuals(mod4))
+```
+Except for a little departure from the normality on the left shown by the qqplot,
+and the significant Tukey test, the residuals and the qqplot look good.
+In this case, the qqplot might be just a little worse then before, but the 
+residuals plots, with realted test statistics, are all very good (again except
+for the Tukey).
+
+
+We can also check the effect plots to check the relation between the predictors
+and the response, and confirm what we have seen in the summary:
+```{r }
+library(effects)
+plot(allEffects(mod4))
+```
+All the predictors are strongly positvely influent on the calories, in fact any
+increment of them causes a strong increment on the response.
+
+We check if the model produces negative values:
+```{r }
+summary(fitted(mod4))
+```
+No, it does not produce negative values, so the model is good, and we
+can proceed with some computation of prediction and prediction intervals:
+```{r }
+head(cereal)
+
+
+pr <- predict(mod4, 
+              newdata = data.frame(carb = 11, 
+                                   sugars = 14,
+                                   chol = 0.,
+                                   fibers = 1), 
+              se.fit = TRUE)
+ci <- pr$fit + c(-1, 1) * qnorm(0.975) * pr$se
+ci
+pr$fit
+
+pr <- predict(mod4, 
+              newdata = data.frame(carb = 15, 
+                                   sugars = 10,
+                                   chol = 2.,
+                                   fibers = 20), 
+              se.fit = TRUE)
+ci <- pr$fit + c(-1, 1) * qnorm(0.975) * pr$se
+ci
+pr$fit
+
+pr <- predict(mod4, 
+              newdata = data.frame(carb = 40, 
+                                   sugars = 60,
+                                   chol = 6.,
+                                   fibers = 33), 
+              se.fit = TRUE)
+ci <- pr$fit + c(-1, 1) * qnorm(0.975) * pr$se
+ci
+pr$fit
+```
+As seen in the previous plots, all the chosen predictors are strongly significant,
+so by increasing any of them the increase of calories is very high.
+
+

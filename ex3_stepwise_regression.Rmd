@@ -1,0 +1,129 @@
+---
+title: "Example 3: Stepwise vs Basic Logistic regression"
+author: "Author: Gurakuqi Jurgen"
+output:
+  html_document: default
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```  
+
+
+The dataset bank-deposit-complete.csv is an extended version of the dataset considered in the second exercise of the first part of this exam. The dataset includes 10 variables about a marketing campaign consisting in phone calls to convince clients to subscribe a bank term deposit.
+
+Available variables:
+
+subscribed the client subscribed the term deposit?
+
+age;
+
+job with levels "admin.","unknown","unemployed","management","housemaid","entrepreneur","student", "blue-collar","self-employed","retired","technician","services";
+
+marital status with levels "married","divorced","single" ("divorced" includes widowed);
+
+education with levels "unknown","primary", "secondary","tertiary";
+
+default credit in default?
+
+balance average yearly balance, in euros;
+
+loan current personal loans?
+
+contact type with levels "unknown","telephone","cellular";
+
+compaign number of contacts.
+
+Which variables are most important to identify the clients who subscribes the bank term deposit? Discuss the results.
+
+
+
+
+
+First of all, read the data and print the first 6 rows to get an idea of how
+the dataset is populated:
+```{r }
+bankDeposit <- read.csv("bank-deposit-complete.csv")
+head(bankDeposit)
+summary(bankDeposit)
+```
+
+We observed that there are categorical variables, so we transform them into 
+factors: 
+```{r }
+bankDeposit$subscribed <- factor(bankDeposit$subscribed)
+bankDeposit$job <- factor(bankDeposit$job)
+bankDeposit$default <- factor(bankDeposit$default)
+bankDeposit$education <- factor(bankDeposit$education)
+bankDeposit$loan <- factor(bankDeposit$loan)
+bankDeposit$contact <- factor(bankDeposit$contact)
+bankDeposit$marital <- factor(bankDeposit$marital)
+summary(bankDeposit)
+``` 
+
+
+In order to identify the most important predictors of subscribed we can consider 
+a logistic regression with a lasso penalty:
+```{r}
+library("glmnet")
+library("glmnetUtils")
+set.seed(999)
+mod1 <- cv.glmnet(subscribed ~ ., family = binomial, 
+                  data = bankDeposit)
+plot(mod1)
+coef(mod1, mod1$lambda.min)
+coef(mod1, mod1$lambda.1se)
+```
+The penalty that minimizes the cross-validation error and the 1-standard error 
+from the minimum agree that the important predictors of *subscribed* are:
+
+- job (for the retired value), with a positive relation.
+- loan, with a positive relation for no and a negative one for yes.
+- contact (for the unknow value), with a negative relation.
+ 
+Another selection approach which we can consider to confirm the above results
+is the stepwise regression (with biderectional elimination):
+```{r}
+null.model <- glm(subscribed ~ 1, family = binomial, 
+                  data = bankDeposit) 
+full.model <- glm(subscribed ~ ., family = binomial, 
+                  data = bankDeposit)
+step.model <- step(null.model, scope = list(upper = formula(full.model)), 
+                   direction = "both")
+summary(step.model)
+```
+According to stepwise regression:
+
+- **contact** (for unknown) is *strongly* significant, and *negatively* related to the subscribed response.
+- **loan** is *strongly* significant, and *negatively* related to the response.
+- **campaign** is *strongly* significant, and *negatively* related to the response.
+- **job** (for retired) is *weakly* significant, and *positively* related to 
+the response.
+- **marital** (for married) is significant, and *negatively* related to the
+response.
+- Age, and any other value not expressed for the considered predictors are not 
+significant.
+- The $AIC$ is *3062.8*.
+
+
+The two selection model agree only on part of the predictors:
+
+- Maritial and campaign are considered only by stepwise selection.
+- Job, loan and contact are the only predictors agreed by the two selectio 
+methods, which are also related to the response in the same way (positively
+for job, negatively for loan, and negatively for contact).
+
+We could also compare the two model which are obtained using the two different
+sets of predictor through a 10-fold cross validation
+```{r }
+glm.fit <- glm(subscribed ~ job + loan + contact, data = bankDeposit, family = binomial)
+
+library(boot)
+cv.glm(bankDeposit, glm.fit, K = 10)$delta
+cv.glm(bankDeposit, step.model, K = 10)$delta
+```
+As we can see, the resiults are very similar, but the set obtained through
+stepwise regression seems lightly better, so we pick its set of predictors as
+best predictors of subscribed.
+ 
